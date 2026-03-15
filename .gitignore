@@ -4,3 +4,4 @@ venv/
 spark_jars/
 __pycache__/
 *.pyc
+config/

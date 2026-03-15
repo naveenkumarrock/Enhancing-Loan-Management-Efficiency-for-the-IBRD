@@ -15,7 +15,6 @@ ADLS_ACCOUNT = os.getenv("ACCOUNT_NAME")
 ADLS_CONTAINER = os.getenv("CONTAINER_NAME")
 ADLS_CONNECTION_STRING = os.getenv("CONNECTION_STRING")
 ADLS_ACCOUNT_KEY = os.getenv("ACCOUNT_KEY")
-ADLS_BASE = f"abfss://{ADLS_CONTAINER}@{ADLS_ACCOUNT}.dfs.core.windows.net"
 SILVER_PATH = f"abfss://{ADLS_CONTAINER}@{ADLS_ACCOUNT}.dfs.core.windows.net/silver/"
 GOLD_PATH = f"abfss://{ADLS_CONTAINER}@{ADLS_ACCOUNT}.dfs.core.windows.net/gold/"
 
