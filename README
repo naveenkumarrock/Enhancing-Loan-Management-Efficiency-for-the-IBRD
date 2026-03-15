@@ -1,0 +1,25 @@
+# Loan Data Engineering Pipeline
+
+This project implements a complete Data Engineering pipeline using PySpark and Azure Data Lake.
+
+Architecture:
+Bronze → Silver → Gold
+
+Technologies:
+- PySpark
+- Azure Data Lake Storage
+- Parquet
+- Python
+- Spark SQL
+
+Pipeline Steps:
+1. Raw data ingestion (Bronze)
+2. Data cleaning and transformation (Silver)
+3. Star schema modeling (Gold)
+
+Tables:
+- dim_customer
+- dim_region
+- dim_loan_type
+- dim_date
+- fact_loans
