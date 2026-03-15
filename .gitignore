@@ -1,4 +1,6 @@
+data/
 .env
-venv
-spark_jars
-data
+venv/
+spark_jars/
+__pycache__/
+*.pyc
