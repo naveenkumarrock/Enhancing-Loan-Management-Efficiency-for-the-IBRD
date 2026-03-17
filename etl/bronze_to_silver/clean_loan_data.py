@@ -85,9 +85,6 @@ def standardize_column_names(df: DataFrame) -> DataFrame:
     logger.info(f"{len(df.columns)} columns standardized.")
     return df
 
-from pyspark.sql import functions as F
-from pyspark.sql.types import NumericType, DoubleType
-
 def cast_numeric_columns(df):
     """
     Cast all numeric columns in the DataFrame to DoubleType.

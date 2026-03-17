@@ -1,0 +1,225 @@
+USE WAREHOUSE LOAN_WH;
+
+USE DATABASE LOAN_DB;
+
+CREATE OR REPLACE SCHEMA ANALYTICS;
+
+USE SCHEMA ANALYTICS;
+
+-- ==========================================================
+-- 1 Master Analytical View
+-- ==========================================================
+CREATE OR REPLACE VIEW ANALYTICS.LOAN_ANALYTICS AS
+SELECT
+
+    -- Fact columns
+    f.LOAN_FACT_KEY,
+    f.LOAN_NUMBER,
+    f.END_OF_PERIOD,
+
+    f.ORIGINAL_PRINCIPAL_AMOUNT,
+    f.CANCELLED_AMOUNT,
+    f.UNDISBURSED_AMOUNT,
+    f.DISBURSED_AMOUNT,
+
+    f.REPAID_TO_IBRD,
+    f.DUE_TO_IBRD,
+    f.INTEREST_RATE,
+
+    f.BOARD_APPROVAL_DATE,
+    f.AGREEMENT_SIGNING_DATE,
+    f.FIRST_REPAYMENT_DATE,
+    f.LAST_REPAYMENT_DATE,
+
+    -- Country dimension
+    c.COUNTRY,
+    c.REGION,
+
+    -- Project dimension
+    p.PROJECT_ID,
+    p.PROJECT_NAME,
+
+    -- Loan type dimension
+    lt.LOAN_TYPE,
+    lt.LOAN_STATUS,
+
+    -- Borrower dimension
+    b.BORROWER
+
+FROM LOAN_DB.PUBLIC.FACT_LOANS f
+
+LEFT JOIN LOAN_DB.PUBLIC.DIM_COUNTRY c
+ON f.COUNTRY_KEY = c.COUNTRY_KEY
+
+LEFT JOIN LOAN_DB.PUBLIC.DIM_PROJECT p
+ON f.PROJECT_KEY = p.PROJECT_KEY
+
+LEFT JOIN LOAN_DB.PUBLIC.DIM_LOAN_TYPE lt
+ON f.LOAN_TYPE_KEY = lt.LOAN_TYPE_KEY
+
+LEFT JOIN LOAN_DB.PUBLIC.DIM_BORROWER b
+ON f.BORROWER_KEY = b.BORROWER_KEY;
+
+-- ==========================================================
+-- 2 Loan Processing Timeline Analysis
+-- ==========================================================
+CREATE OR REPLACE VIEW ANALYTICS.LOAN_PROCESSING_TIMELINE AS
+SELECT
+
+    f.LOAN_NUMBER,
+    p.PROJECT_NAME,
+    b.BORROWER,
+    c.COUNTRY,
+
+    f.BOARD_APPROVAL_DATE,
+    f.AGREEMENT_SIGNING_DATE,
+    f.FIRST_REPAYMENT_DATE,
+
+    DATEDIFF('day', f.BOARD_APPROVAL_DATE, f.AGREEMENT_SIGNING_DATE)
+        AS APPROVAL_TO_SIGNING_DAYS,
+
+    DATEDIFF('day', f.AGREEMENT_SIGNING_DATE, f.FIRST_REPAYMENT_DATE)
+        AS SIGNING_TO_REPAYMENT_DAYS
+
+FROM LOAN_DB.PUBLIC.FACT_LOANS f
+LEFT JOIN LOAN_DB.PUBLIC.DIM_PROJECT p ON f.PROJECT_KEY = p.PROJECT_KEY
+LEFT JOIN LOAN_DB.PUBLIC.DIM_BORROWER b ON f.BORROWER_KEY = b.BORROWER_KEY
+LEFT JOIN LOAN_DB.PUBLIC.DIM_COUNTRY c ON f.COUNTRY_KEY = c.COUNTRY_KEY;
+
+-- ==========================================================
+-- 3 Top Loan Recipients
+-- ==========================================================
+CREATE OR REPLACE VIEW ANALYTICS.TOP_LOAN_RECIPIENTS AS
+SELECT
+
+    b.BORROWER,
+    c.COUNTRY,
+    SUM(f.ORIGINAL_PRINCIPAL_AMOUNT) AS TOTAL_LOAN_AMOUNT
+
+FROM LOAN_DB.PUBLIC.FACT_LOANS f
+LEFT JOIN LOAN_DB.PUBLIC.DIM_BORROWER b
+ON f.BORROWER_KEY = b.BORROWER_KEY
+
+LEFT JOIN LOAN_DB.PUBLIC.DIM_COUNTRY c
+ON f.COUNTRY_KEY = c.COUNTRY_KEY
+
+GROUP BY b.BORROWER, c.COUNTRY
+ORDER BY TOTAL_LOAN_AMOUNT DESC;
+
+-- ==========================================================
+-- 4 Loan Cancellation Trends
+-- ==========================================================
+CREATE OR REPLACE VIEW ANALYTICS.LOAN_CANCELLATION_TRENDS AS
+SELECT
+
+    YEAR(f.END_OF_PERIOD) AS YEAR,
+    SUM(f.CANCELLED_AMOUNT) AS TOTAL_CANCELLED_AMOUNT
+
+FROM LOAN_DB.PUBLIC.FACT_LOANS f
+GROUP BY YEAR
+ORDER BY YEAR;
+
+-- ==========================================================
+-- 5 Loan Distribution by Country
+-- ==========================================================
+CREATE OR REPLACE VIEW ANALYTICS.COUNTRY_LOAN_DISTRIBUTION AS
+SELECT
+
+    c.COUNTRY,
+    c.REGION,
+    SUM(f.ORIGINAL_PRINCIPAL_AMOUNT) AS TOTAL_LOANS
+
+FROM LOAN_DB.PUBLIC.FACT_LOANS f
+LEFT JOIN LOAN_DB.PUBLIC.DIM_COUNTRY c
+ON f.COUNTRY_KEY = c.COUNTRY_KEY
+
+GROUP BY c.COUNTRY, c.REGION
+ORDER BY TOTAL_LOANS DESC;
+
+-- ==========================================================
+-- 6 Loan Type Analysis
+-- ==========================================================
+CREATE OR REPLACE VIEW ANALYTICS.LOAN_TYPE_ANALYSIS AS
+SELECT
+
+    lt.LOAN_TYPE,
+    lt.LOAN_STATUS,
+    SUM(f.ORIGINAL_PRINCIPAL_AMOUNT) AS TOTAL_LOAN_AMOUNT,
+    AVG(f.INTEREST_RATE) AS AVG_INTEREST_RATE
+
+FROM LOAN_DB.PUBLIC.FACT_LOANS f
+LEFT JOIN LOAN_DB.PUBLIC.DIM_LOAN_TYPE lt
+ON f.LOAN_TYPE_KEY = lt.LOAN_TYPE_KEY
+
+GROUP BY lt.LOAN_TYPE, lt.LOAN_STATUS;
+
+-- ==========================================================
+-- 7 Repayment Performance
+-- ==========================================================
+CREATE OR REPLACE VIEW ANALYTICS.REPAYMENT_ANALYSIS AS
+SELECT
+
+    SUM(DISBURSED_AMOUNT) AS TOTAL_DISBURSED,
+    SUM(REPAID_TO_IBRD) AS TOTAL_REPAID,
+    SUM(DUE_TO_IBRD) AS TOTAL_DUE
+
+FROM LOAN_DB.PUBLIC.FACT_LOANS;
+
+-- ==========================================================
+-- 8 Project Loan Analysis
+-- ==========================================================
+CREATE OR REPLACE VIEW ANALYTICS.PROJECT_LOAN_ANALYSIS AS
+SELECT
+
+    p.PROJECT_NAME,
+    SUM(f.ORIGINAL_PRINCIPAL_AMOUNT) AS TOTAL_LOAN,
+    SUM(f.DISBURSED_AMOUNT) AS TOTAL_DISBURSED
+
+FROM LOAN_DB.PUBLIC.FACT_LOANS f
+LEFT JOIN LOAN_DB.PUBLIC.DIM_PROJECT p
+ON f.PROJECT_KEY = p.PROJECT_KEY
+
+GROUP BY p.PROJECT_NAME
+ORDER BY TOTAL_LOAN DESC;
+
+-- ==========================================================
+-- 9 Regional Loan Analysis
+-- ==========================================================
+CREATE OR REPLACE VIEW ANALYTICS.REGIONAL_LOAN_ANALYSIS AS
+SELECT
+    c.REGION,
+    SUM(f.ORIGINAL_PRINCIPAL_AMOUNT) AS TOTAL_LOANS
+FROM LOAN_DB.PUBLIC.FACT_LOANS f
+LEFT JOIN LOAN_DB.PUBLIC.DIM_COUNTRY c
+ON f.COUNTRY_KEY = c.COUNTRY_KEY
+GROUP BY c.REGION
+ORDER BY TOTAL_LOANS DESC;
+
+-- ==========================================================
+-- 10 Loan Utilization Analysis
+-- ==========================================================
+CREATE OR REPLACE VIEW ANALYTICS.LOAN_UTILIZATION_ANALYSIS AS
+SELECT
+
+    p.PROJECT_NAME,
+    c.COUNTRY,
+
+    SUM(f.ORIGINAL_PRINCIPAL_AMOUNT) AS TOTAL_APPROVED_LOAN,
+    SUM(f.DISBURSED_AMOUNT) AS TOTAL_DISBURSED,
+
+    ROUND(
+        (SUM(f.DISBURSED_AMOUNT) / NULLIF(SUM(f.ORIGINAL_PRINCIPAL_AMOUNT),0)) * 100,2) AS UTILIZATION_PERCENTAGE
+
+FROM LOAN_DB.PUBLIC.FACT_LOANS f
+
+LEFT JOIN LOAN_DB.PUBLIC.DIM_PROJECT p
+ON f.PROJECT_KEY = p.PROJECT_KEY
+
+LEFT JOIN LOAN_DB.PUBLIC.DIM_COUNTRY c
+ON f.COUNTRY_KEY = c.COUNTRY_KEY
+
+GROUP BY
+    p.PROJECT_NAME,
+    c.COUNTRY
+
+ORDER BY UTILIZATION_PERCENTAGE DESC;
