@@ -1,15 +1,16 @@
-import os, sys, logging
-from datetime import datetime
+import os, sys
 
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.types import LongType
 from pyspark.sql.utils import AnalysisException
+from utils.logging import setup_logger
 from dotenv import load_dotenv
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CONFIGURATION
 # ══════════════════════════════════════════════════════════════════════════════
+logger = setup_logger("Gold")
 load_dotenv()
 ADLS_ACCOUNT = os.getenv("ACCOUNT_NAME")
 ADLS_CONTAINER = os.getenv("CONTAINER_NAME")
@@ -17,20 +18,6 @@ ADLS_CONNECTION_STRING = os.getenv("CONNECTION_STRING")
 ADLS_ACCOUNT_KEY = os.getenv("ACCOUNT_KEY")
 SILVER_PATH = f"abfss://{ADLS_CONTAINER}@{ADLS_ACCOUNT}.dfs.core.windows.net/silver/"
 GOLD_PATH = f"abfss://{ADLS_CONTAINER}@{ADLS_ACCOUNT}.dfs.core.windows.net/gold/"
-
-# ══════════════════════════════════════════════════════════════════════════════
-# LOGGING
-# ══════════════════════════════════════════════════════════════════════════════
-def _get_logger():
-    lgr = logging.getLogger("silver_to_gold")
-    lgr.setLevel(logging.INFO)
-    if not lgr.handlers:
-        h = logging.StreamHandler(sys.stdout)
-        h.setFormatter(logging.Formatter("%(asctime)s │ %(levelname)-8s │ %(message)s"))
-        lgr.addHandler(h)
-    return lgr
-
-logger = _get_logger()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SPARK SESSION
@@ -108,7 +95,7 @@ def build_dim_country(df: DataFrame) -> DataFrame:
         "guarantor_country_code", "guarantor"
     )
 
-    logger.info(f"  dim_country: {dim_country.count():,} rows")
+    logger.info(f"dim_country: {dim_country.count():,} rows")
     return dim_country
 
 

@@ -1,0 +1,4 @@
+2026-03-20 22:16:02,907 - INFO - Connecting to Snowflake...
+2026-03-20 22:16:06,963 - INFO - Reading SQL file: analytics/analytical.sql
+2026-03-20 22:16:18,185 - INFO - SQL execution completed successfully.
+2026-03-20 22:16:18,347 - INFO - Snowflake connection closed.

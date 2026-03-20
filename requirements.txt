@@ -1,3 +1,7 @@
 azure-storage-blob
 azure-identity
 dotenv
+pandas
+pyarrow
+schedule
+snowflake-connector-python

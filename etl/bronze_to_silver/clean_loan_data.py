@@ -1,38 +1,25 @@
-import os, sys, re, logging
+import os, sys, re
 
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, DoubleType, IntegerType, LongType, FloatType, NumericType
-from pyspark.sql.window import Window
 from pyspark.sql.utils import AnalysisException
 from dotenv import load_dotenv
+from utils.logging import setup_logger
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CONFIGURATION
 # ══════════════════════════════════════════════════════════════════════════════
+logger = setup_logger("Silver")
 load_dotenv()
 
 ADLS_ACCOUNT = os.getenv("ACCOUNT_NAME")
 ADLS_CONTAINER = os.getenv("CONTAINER_NAME")
 ADLS_CONNECTION_STRING = os.getenv("CONNECTION_STRING")
 ADLS_ACCOUNT_KEY = os.getenv("ACCOUNT_KEY")
-ADLS_BASE = f"abfss://{ADLS_CONTAINER}@{ADLS_ACCOUNT}.dfs.core.windows.net"
 BRONZE_PATH = f"abfss://{ADLS_CONTAINER}@{ADLS_ACCOUNT}.dfs.core.windows.net/bronze/ibrd_batchdata.csv"
 SILVER_PATH = f"abfss://{ADLS_CONTAINER}@{ADLS_ACCOUNT}.dfs.core.windows.net/silver/"
-
-# ══════════════════════════════════════════════════════════════════════════════
-# LOGGING
-# ══════════════════════════════════════════════════════════════════════════════
-def _get_logger():
-    lgr = logging.getLogger("bronze_to_silver")
-    lgr.setLevel(logging.INFO)
-    if not lgr.handlers:
-        h = logging.StreamHandler(sys.stdout)
-        h.setFormatter(logging.Formatter("%(asctime)s │ %(levelname)-8s │ %(message)s"))
-        lgr.addHandler(h)
-    return lgr
-
-logger = _get_logger()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SPARK SESSION
@@ -62,23 +49,20 @@ def create_spark_session() -> SparkSession:
 # ══════════════════════════════════════════════════════════════════════════════
 # TRANSFORMATION FUNCTIONS
 # ══════════════════════════════════════════════════════════════════════════════
-import re
-from pyspark.sql import DataFrame
-
 def standardize_column_names(df: DataFrame) -> DataFrame:
     """Standardize column names: lowercase, snake_case, remove spaces, parentheses, and special chars."""
     logger.info("Standardizing column names to snake_case...")
     
     for col_name in df.columns:
-        new_name = col_name.lower().strip()               # lowercase & strip edges
-        new_name = new_name.replace("sum(", "sum_")       # replace sum(
-        new_name = re.sub(r"\(.*?\)", "", new_name)       # remove parentheses content
-        new_name = new_name.replace("economy", "")        # remove 'economy'
-        new_name = new_name.replace("'", "")              # remove apostrophes
-        new_name = new_name.replace("/", " ")             # replace slashes with space
-        new_name = re.sub(r"\s+", "_", new_name)          # spaces → underscore
-        new_name = re.sub(r"_+", "_", new_name)           # multiple underscores → single
-        new_name = new_name.strip("_")                    # remove leading/trailing underscores
+        new_name = col_name.lower().strip()               
+        new_name = new_name.replace("sum(", "sum_")       
+        new_name = re.sub(r"\(.*?\)", "", new_name)       
+        new_name = new_name.replace("economy", "")        
+        new_name = new_name.replace("'", "")              
+        new_name = new_name.replace("/", " ")             
+        new_name = re.sub(r"\s+", "_", new_name)          
+        new_name = re.sub(r"_+", "_", new_name)           
+        new_name = new_name.strip("_")                    
         
         df = df.withColumnRenamed(col_name, new_name)
     
@@ -178,6 +162,48 @@ def clean_string_columns(df: DataFrame) -> DataFrame:
     
     return df
 
+from pyspark.sql import DataFrame
+from pyspark.sql import functions as F
+
+def clean_text_columns(df: DataFrame) -> DataFrame:
+    """
+    Cleans specific text columns:
+    - borrower: remove special characters, trim, set empty to NULL
+    - project_name: remove roman numerals, numbers, special chars, normalize spaces, set empty to NULL
+    """
+    df = df.withColumn(
+        "borrower",
+        F.when(
+            F.trim(F.regexp_replace(F.col("borrower"), r"[!@#\$%\^&\*\(\)\-\+,\.\?'\"]", "")) == "",
+            None
+        ).otherwise(
+            F.trim(F.regexp_replace(F.col("borrower"), r"[!@#\$%\^&\*\(\)\-\+,\.\?'\"]", ""))
+        )
+    )
+    df = df.withColumn(
+        "project_name",
+        F.when(
+            F.trim(
+                F.regexp_replace(
+                    F.regexp_replace(F.col("project_name"), r"\b[IVXLCDM]+\b", ""),
+                    r"[^A-Za-z ]",
+                    ""
+                )
+            ) == "",
+            None
+        ).otherwise(
+            F.trim(
+                F.regexp_replace(
+                    F.regexp_replace(F.col("project_name"), r"\b[IVXLCDM]+\b", ""),
+                    r"[^A-Za-z ]",
+                    ""
+                )
+            )
+        )
+    )
+
+    return df
+
 def log_data_quality(df: DataFrame) -> None:
     """Logs null percentages and distinct counts for key columns."""
     total = df.count()
@@ -223,8 +249,9 @@ def run_bronze_to_silver(spark: SparkSession):
         df = handle_negative_values(df)
         df = deduplicate_records(df)
         df = clean_string_columns(df)
+        df = clean_text_columns(df)
         row_count = df.count()
-        # Count rows for logging
+        
         logger.info(f"Number of rows to be written to Silver: {row_count:,}")
 
         log_data_quality(df)

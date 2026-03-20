@@ -1,0 +1,17 @@
+2026-03-20 19:49:46,048 - INFO - ============================================================
+2026-03-20 19:49:46,059 - INFO -   Input : abfss://naveen@loanefficiency.dfs.core.windows.net/bronze/ibrd_batchdata.csv
+2026-03-20 19:49:46,059 - INFO -   Output: abfss://naveen@loanefficiency.dfs.core.windows.net/silver/
+2026-03-20 19:49:46,059 - INFO - ============================================================
+2026-03-20 19:50:58,424 - INFO -   Loaded 1,048,575 raw records.
+2026-03-20 19:50:58,486 - INFO - Standardizing column names to snake_case...
+2026-03-20 19:50:58,903 - INFO - 33 columns standardized.
+2026-03-20 19:51:00,769 - INFO - Handling missing values dynamically using schema...
+2026-03-20 19:51:00,880 - INFO - Handling negative values...
+2026-03-20 19:51:00,994 - INFO - Removing only exact duplicate rows...
+2026-03-20 19:51:42,281 - INFO - Number of rows to be written to Silver: 1,048,295
+2026-03-20 19:52:19,747 - INFO - DATA QUALITY — 1,048,295 rows, 33 cols
+2026-03-20 19:52:50,377 - INFO -   Distinct 'region': 12
+2026-03-20 19:53:19,416 - INFO -   Distinct 'country': 153
+2026-03-20 19:53:49,925 - INFO -   Distinct 'loan_type': 19
+2026-03-20 19:54:23,390 - INFO -   Distinct 'loan_status': 15
+2026-03-20 19:54:23,391 - INFO - Writing Silver layer as a single Parquet file...

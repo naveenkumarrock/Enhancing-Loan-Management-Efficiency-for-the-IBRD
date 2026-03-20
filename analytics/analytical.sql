@@ -9,31 +9,49 @@ USE SCHEMA ANALYTICS;
 -- ==========================================================
 -- 1 Master Analytical View
 -- ==========================================================
-CREATE OR REPLACE VIEW ANALYTICS.LOAN_ANALYTICS AS
-SELECT
+USE WAREHOUSE LOAN_WH;
+USE DATABASE LOAN_DB;
+CREATE OR REPLACE SCHEMA ANALYTICS;
+USE SCHEMA ANALYTICS;
 
+-- ==========================================================
+-- MASTER ANALYTICAL TABLE FOR POWER BI
+-- ==========================================================
+-- ==========================================================
+-- UPDATED MASTER ANALYTICAL TABLE FOR POWER BI
+-- ==========================================================
+CREATE OR REPLACE DYNAMIC TABLE ANALYTICS.LOAN_ANALYTICS_MASTER
+TARGET_LAG = '10 minutes'
+WAREHOUSE = LOAN_WH
+AS
+SELECT
     -- Fact columns
     f.LOAN_FACT_KEY,
     f.LOAN_NUMBER,
     f.END_OF_PERIOD,
-
+    YEAR(f.END_OF_PERIOD) AS YEAR,           -- YEAR column for slicer
     f.ORIGINAL_PRINCIPAL_AMOUNT,
     f.CANCELLED_AMOUNT,
     f.UNDISBURSED_AMOUNT,
     f.DISBURSED_AMOUNT,
-
     f.REPAID_TO_IBRD,
     f.DUE_TO_IBRD,
+    f.BORROWERS_OBLIGATION,
+    f.SOLD_3RD_PARTY,
+    f.REPAID_3RD_PARTY,
+    f.DUE_3RD_PARTY,
+    f.LOANS_HELD,
     f.INTEREST_RATE,
-
     f.BOARD_APPROVAL_DATE,
     f.AGREEMENT_SIGNING_DATE,
     f.FIRST_REPAYMENT_DATE,
     f.LAST_REPAYMENT_DATE,
+    f.LAST_DISBURSEMENT_DATE,
 
     -- Country dimension
     c.COUNTRY,
     c.REGION,
+    c.GUARANTOR,
 
     -- Project dimension
     p.PROJECT_ID,
@@ -47,23 +65,22 @@ SELECT
     b.BORROWER
 
 FROM LOAN_DB.PUBLIC.FACT_LOANS f
-
 LEFT JOIN LOAN_DB.PUBLIC.DIM_COUNTRY c
-ON f.COUNTRY_KEY = c.COUNTRY_KEY
-
+    ON f.COUNTRY_KEY = c.COUNTRY_KEY
 LEFT JOIN LOAN_DB.PUBLIC.DIM_PROJECT p
-ON f.PROJECT_KEY = p.PROJECT_KEY
-
+    ON f.PROJECT_KEY = p.PROJECT_KEY
 LEFT JOIN LOAN_DB.PUBLIC.DIM_LOAN_TYPE lt
-ON f.LOAN_TYPE_KEY = lt.LOAN_TYPE_KEY
-
+    ON f.LOAN_TYPE_KEY = lt.LOAN_TYPE_KEY
 LEFT JOIN LOAN_DB.PUBLIC.DIM_BORROWER b
-ON f.BORROWER_KEY = b.BORROWER_KEY;
+    ON f.BORROWER_KEY = b.BORROWER_KEY;
 
 -- ==========================================================
 -- 2 Loan Processing Timeline Analysis
 -- ==========================================================
-CREATE OR REPLACE VIEW ANALYTICS.LOAN_PROCESSING_TIMELINE AS
+CREATE OR REPLACE DYNAMIC TABLE ANALYTICS.LOAN_PROCESSING_TIMELINE 
+TARGET_LAG = '10 minutes'
+WAREHOUSE = LOAN_WH
+AS
 SELECT
 
     f.LOAN_NUMBER,
@@ -89,7 +106,10 @@ LEFT JOIN LOAN_DB.PUBLIC.DIM_COUNTRY c ON f.COUNTRY_KEY = c.COUNTRY_KEY;
 -- ==========================================================
 -- 3 Top Loan Recipients
 -- ==========================================================
-CREATE OR REPLACE VIEW ANALYTICS.TOP_LOAN_RECIPIENTS AS
+CREATE OR REPLACE DYNAMIC TABLE ANALYTICS.TOP_LOAN_RECIPIENTS 
+TARGET_LAG = '10 minutes'
+WAREHOUSE = LOAN_WH
+AS
 SELECT
 
     b.BORROWER,
@@ -109,7 +129,10 @@ ORDER BY TOTAL_LOAN_AMOUNT DESC;
 -- ==========================================================
 -- 4 Loan Cancellation Trends
 -- ==========================================================
-CREATE OR REPLACE VIEW ANALYTICS.LOAN_CANCELLATION_TRENDS AS
+CREATE OR REPLACE DYNAMIC TABLE ANALYTICS.LOAN_CANCELLATION_TRENDS
+TARGET_LAG = '10 minutes'
+WAREHOUSE = LOAN_WH 
+AS
 SELECT
 
     YEAR(f.END_OF_PERIOD) AS YEAR,
@@ -122,7 +145,10 @@ ORDER BY YEAR;
 -- ==========================================================
 -- 5 Loan Distribution by Country
 -- ==========================================================
-CREATE OR REPLACE VIEW ANALYTICS.COUNTRY_LOAN_DISTRIBUTION AS
+CREATE OR REPLACE DYNAMIC TABLE ANALYTICS.COUNTRY_LOAN_DISTRIBUTION 
+TARGET_LAG = '10 minutes'
+WAREHOUSE = LOAN_WH
+AS
 SELECT
 
     c.COUNTRY,
@@ -139,7 +165,10 @@ ORDER BY TOTAL_LOANS DESC;
 -- ==========================================================
 -- 6 Loan Type Analysis
 -- ==========================================================
-CREATE OR REPLACE VIEW ANALYTICS.LOAN_TYPE_ANALYSIS AS
+CREATE OR REPLACE DYNAMIC TABLE ANALYTICS.LOAN_TYPE_ANALYSIS
+TARGET_LAG = '10 minutes'
+WAREHOUSE = LOAN_WH
+AS
 SELECT
 
     lt.LOAN_TYPE,
@@ -156,7 +185,10 @@ GROUP BY lt.LOAN_TYPE, lt.LOAN_STATUS;
 -- ==========================================================
 -- 7 Repayment Performance
 -- ==========================================================
-CREATE OR REPLACE VIEW ANALYTICS.REPAYMENT_ANALYSIS AS
+CREATE OR REPLACE DYNAMIC TABLE ANALYTICS.REPAYMENT_ANALYSIS 
+TARGET_LAG = '10 minutes'
+WAREHOUSE = LOAN_WH
+AS
 SELECT
 
     SUM(DISBURSED_AMOUNT) AS TOTAL_DISBURSED,
@@ -168,7 +200,10 @@ FROM LOAN_DB.PUBLIC.FACT_LOANS;
 -- ==========================================================
 -- 8 Project Loan Analysis
 -- ==========================================================
-CREATE OR REPLACE VIEW ANALYTICS.PROJECT_LOAN_ANALYSIS AS
+CREATE OR REPLACE DYNAMIC TABLE ANALYTICS.PROJECT_LOAN_ANALYSIS 
+TARGET_LAG = '10 minutes'
+WAREHOUSE = LOAN_WH
+AS
 SELECT
 
     p.PROJECT_NAME,
@@ -185,7 +220,10 @@ ORDER BY TOTAL_LOAN DESC;
 -- ==========================================================
 -- 9 Regional Loan Analysis
 -- ==========================================================
-CREATE OR REPLACE VIEW ANALYTICS.REGIONAL_LOAN_ANALYSIS AS
+CREATE OR REPLACE DYNAMIC TABLE ANALYTICS.REGIONAL_LOAN_ANALYSIS 
+TARGET_LAG = '10 minutes'
+WAREHOUSE = LOAN_WH
+AS
 SELECT
     c.REGION,
     SUM(f.ORIGINAL_PRINCIPAL_AMOUNT) AS TOTAL_LOANS
@@ -198,7 +236,10 @@ ORDER BY TOTAL_LOANS DESC;
 -- ==========================================================
 -- 10 Loan Utilization Analysis
 -- ==========================================================
-CREATE OR REPLACE VIEW ANALYTICS.LOAN_UTILIZATION_ANALYSIS AS
+CREATE OR REPLACE DYNAMIC TABLE ANALYTICS.LOAN_UTILIZATION_ANALYSIS
+TARGET_LAG = '10 minutes'
+WAREHOUSE = LOAN_WH
+AS
 SELECT
 
     p.PROJECT_NAME,

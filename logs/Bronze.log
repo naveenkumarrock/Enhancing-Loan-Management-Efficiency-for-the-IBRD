@@ -1,0 +1,4 @@
+2026-03-20 19:05:44,494 - INFO - Connected to Azure Data Lake
+2026-03-20 19:05:44,495 - INFO - Processing file: data/batch_data/ibrd_batchdata.csv
+2026-03-20 19:06:27,236 - INFO - ibrd_batchdata.csv uploaded successfully with 1048575 rows
+2026-03-20 19:06:27,236 - INFO - Upload completed successfully

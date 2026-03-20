@@ -14,7 +14,7 @@ USE WAREHOUSE LOAN_WH;
 -- ==========================================================
 -- 2. CREATE DATABASE
 -- ==========================================================
-
+ 
 CREATE DATABASE IF NOT EXISTS LOAN_DB;
 
 USE DATABASE LOAN_DB;
@@ -31,7 +31,7 @@ USE SCHEMA PUBLIC;
 -- 4. DIMENSION TABLES
 -- ==========================================================
 
-CREATE TABLE IF NOT EXISTS DIM_COUNTRY (
+CREATE OR REPLACE TABLE DIM_COUNTRY (
     COUNTRY_KEY BIGINT,
     COUNTRY_CODE STRING,
     COUNTRY STRING,
@@ -46,7 +46,7 @@ CREATE OR REPLACE TABLE DIM_PROJECT (
     PROJECT_NAME STRING
 );
 
-CREATE TABLE IF NOT EXISTS DIM_LOAN_TYPE (
+CREATE OR REPLACE TABLE DIM_LOAN_TYPE (
     LOAN_TYPE_KEY BIGINT,
     LOAN_TYPE STRING,
     LOAN_STATUS STRING
@@ -57,7 +57,6 @@ CREATE OR REPLACE TABLE DIM_BORROWER (
     BORROWER STRING,
     COUNTRY_CODE STRING
 );
-
 
 -- ==========================================================
 -- 5. FACT TABLE
@@ -104,76 +103,84 @@ CREATE OR REPLACE TABLE FACT_LOANS (
 -- ==========================================================
 -- 6. CREATE EXTERNAL STAGE (ADLS GOLD LAYER)
 -- ==========================================================
-
 CREATE OR REPLACE STAGE GOLD_STAGE
-URL='azure://loanefficiency.blob.core.windows.net/naveen/gold/'
-CREDENTIALS=(
-AZURE_SAS_TOKEN='sp=rcwl&st=2026-03-15T10:50:35Z&se=2026-03-31T19:05:35Z&spr=https&sv=2024-11-04&sr=c&sig=n1YZgVfbtW8JbAUc30RmeJPQO4NwgbiDSFPdtXaKdm0%3D'
-)
-FILE_FORMAT=(TYPE=PARQUET);
+URL = 'azure://loanefficiency.blob.core.windows.net/naveen/gold/'
+STORAGE_INTEGRATION = AZURE_INT
+FILE_FORMAT = (TYPE = PARQUET);
 
+CREATE OR REPLACE FILE FORMAT my_parquet_format
+TYPE = PARQUET;
+
+CREATE OR REPLACE NOTIFICATION INTEGRATION AZURE_NOTIFICATION
+TYPE = QUEUE
+ENABLED = TRUE
+NOTIFICATION_PROVIDER = 'AZURE_STORAGE_QUEUE'
+AZURE_TENANT_ID = '9cefb894-54ee-4e0d-91e7-908ce3342271'
+AZURE_STORAGE_QUEUE_PRIMARY_URI = 'https://loanefficiency.queue.core.windows.net/snowpipequeues';
+
+describe integration AZURE_NOTIFICATION;
 -- ==========================================================
--- 7. LOAD DATA INTO DIMENSIONS
+-- 8. LOAD DATA INTO DIM AND FACT TABLES
 -- ==========================================================
-
-LIST @GOLD_STAGE;
-
+CREATE OR REPLACE PIPE PIPE_DIM_COUNTRY
+AUTO_INGEST = TRUE
+INTEGRATION = AZURE_NOTIFICATION
+AS
 COPY INTO DIM_COUNTRY
 FROM (
-SELECT
-    $1:COUNTRY_KEY::BIGINT,
-    NULLIF($1:COUNTRY_CODE::STRING,'Unknown'),
-    NULLIF($1:COUNTRY::STRING,'Unknown'),
-    NULLIF($1:REGION::STRING,'Unknown'),
-    NULLIF($1:GUARANTOR_COUNTRY_CODE::STRING,'Unknown'),
-    NULLIF($1:GUARANTOR::STRING,'Unknown')
-FROM @GOLD_STAGE/dim_country/
-)
-FILE_FORMAT=(TYPE=PARQUET)
-PATTERN='.*\\.parquet'
-ON_ERROR='CONTINUE';
+    SELECT
+        $1:country_key::NUMBER AS COUNTRY_KEY,
+        UPPER($1:country_code::STRING) AS COUNTRY_CODE,
+        INITCAP($1:country::STRING) AS COUNTRY,
+        UPPER($1:region::STRING) AS REGION,
+        UPPER($1:guarantor_country_code::STRING) AS GUARANTOR_COUNTRY_CODE,
+        INITCAP($1:guarantor::STRING) AS GUARANTOR
+    FROM @GOLD_STAGE/dim_country/
+);
 
+CREATE OR REPLACE PIPE PIPE_DIM_PROJECT
+AUTO_INGEST = TRUE
+INTEGRATION = AZURE_NOTIFICATION
+AS
 COPY INTO DIM_PROJECT
 FROM (
-SELECT
-    $1:project_key::BIGINT,
-    NULLIF($1:project_id::STRING,'Unknown'),
+    SELECT
+        $1:project_key,
+        $1:project_id,
+        $1:project_name
+    FROM @GOLD_STAGE/dim_project/
+);
 
-    TRIM(REGEXP_REPLACE(REGEXP_REPLACE($1:project_name::STRING,'\\b[IVXLCDM]+\\b',''),'[^A-Za-z0-9 ]',''))
-
-FROM @GOLD_STAGE/dim_project/
-)
-FILE_FORMAT=(TYPE=PARQUET)
-PATTERN='.*\\.parquet'
-ON_ERROR='CONTINUE';
-
+CREATE OR REPLACE PIPE PIPE_DIM_LOAN_TYPE
+AUTO_INGEST = TRUE
+INTEGRATION = AZURE_NOTIFICATION
+AS
 COPY INTO DIM_LOAN_TYPE
 FROM (
-SELECT
-    $1:LOAN_TYPE_KEY::BIGINT,
-    NULLIF($1:LOAN_TYPE::STRING,'Unknown'),
-    NULLIF($1:LOAN_STATUS::STRING,'Unknown')
-FROM @GOLD_STAGE/dim_loan_type/
-)
-FILE_FORMAT=(TYPE=PARQUET)
-PATTERN='.*\\.parquet'
-ON_ERROR='CONTINUE';
+    SELECT
+        $1:loan_type_key::NUMBER AS LOAN_TYPE_KEY,
+        UPPER($1:loan_type::STRING) AS LOAN_TYPE,
+        INITCAP($1:loan_status::STRING) AS LOAN_STATUS
+    FROM @GOLD_STAGE/dim_loan_type/
+);
 
+CREATE OR REPLACE PIPE PIPE_DIM_BORROWER
+AUTO_INGEST = TRUE
+INTEGRATION = AZURE_NOTIFICATION
+AS
 COPY INTO DIM_BORROWER
 FROM (
-SELECT
-    $1:borrower_key::BIGINT,
-    NULLIF(REGEXP_REPLACE($1:borrower::STRING, '[!@#\$%\^&\*\(\)\-\+,.?''"]', ''), '') AS borrower,
-    NULLIF($1:country_code::STRING,'Unknown') AS country_code
-FROM @GOLD_STAGE/dim_borrower/
-)
-FILE_FORMAT=(TYPE=PARQUET)
-PATTERN='.*\\.parquet'
-ON_ERROR='CONTINUE';
+    SELECT
+        $1:borrower_key,
+        $1:borrower,
+        $1:country_code
+    FROM @GOLD_STAGE/dim_borrower/
+);
 
--- ==========================================================
--- 8. LOAD FACT TABLE
--- ==========================================================
+CREATE OR REPLACE PIPE PIPE_FACT_LOANS
+AUTO_INGEST = TRUE
+INTEGRATION = AZURE_NOTIFICATION
+AS
 COPY INTO FACT_LOANS
 FROM (
     SELECT
@@ -206,17 +213,12 @@ FROM (
 FILE_FORMAT = (TYPE = PARQUET)
 ON_ERROR='CONTINUE';
 
-
 -- ==========================================================
--- 9. VALIDATION QUERIES
+-- 9. GRANTS FOR ROLE
 -- ==========================================================
-
-SELECT COUNT(*) FROM DIM_COUNTRY;
-
-SELECT COUNT(*) FROM DIM_PROJECT;
-
-SELECT COUNT(*) FROM DIM_LOAN_TYPE;
-
-SELECT COUNT(*) FROM DIM_BORROWER;
-
-SELECT COUNT(*) FROM FACT_LOANS;
+GRANT USAGE ON STAGE GOLD_STAGE TO ROLE ACCOUNTADMIN;
+GRANT OPERATE ON PIPE PIPE_DIM_COUNTRY TO ROLE ACCOUNTADMIN;
+GRANT OPERATE ON PIPE PIPE_DIM_PROJECT TO ROLE ACCOUNTADMIN;
+GRANT OPERATE ON PIPE PIPE_DIM_LOAN_TYPE TO ROLE ACCOUNTADMIN;
+GRANT OPERATE ON PIPE PIPE_DIM_BORROWER TO ROLE ACCOUNTADMIN;
+GRANT OPERATE ON PIPE PIPE_FACT_LOANS TO ROLE ACCOUNTADMIN;

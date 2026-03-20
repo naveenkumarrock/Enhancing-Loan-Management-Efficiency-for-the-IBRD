@@ -1,8 +1,9 @@
 import os
 import snowflake.connector
 from dotenv import load_dotenv
+from utils.logging import setup_logger
 
-# Load environment variables
+logger = setup_logger("Snowflake")
 load_dotenv()
 
 SNOWFLAKE_CONFIG = {
@@ -17,7 +18,7 @@ SNOWFLAKE_CONFIG = {
 
 def run_sql_file(sql_file_path):
 
-    print("Connecting to Snowflake...")
+    logger.info("Connecting to Snowflake...")
 
     conn = snowflake.connector.connect(
         user=SNOWFLAKE_CONFIG["user"],
@@ -30,7 +31,7 @@ def run_sql_file(sql_file_path):
 
     try:
 
-        print(f"Reading SQL file: {sql_file_path}")
+        logger.info(f"Reading SQL file: {sql_file_path}")
 
         with open(sql_file_path, "r") as f:
             sql_script = f.read()
@@ -39,18 +40,19 @@ def run_sql_file(sql_file_path):
         for cursor in conn.execute_string(sql_script):
             print("Executed:", cursor)
 
-        print("SQL execution completed successfully.")
+        logger.info("SQL execution completed successfully.")
 
     except Exception as e:
-        print("Error executing SQL:", e)
+        logger.error("Error executing SQL:", e)
 
     finally:
         conn.close()
-        print("Snowflake connection closed.")
+        logger.info("Snowflake connection closed.")
 
 
 if __name__ == "__main__":
 
-    sql_file = "snowflake/setup/datawarehouse.sql"
+    sql_files = ["snowflake/setup/datawarehouse.sql","snowflake/setup/datamasking_rbac.sql"]
 
-    run_sql_file(sql_file)
+    for file in sql_files:
+        run_sql_file(file)

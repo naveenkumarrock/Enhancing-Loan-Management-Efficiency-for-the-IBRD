@@ -1,0 +1,7 @@
+2026-03-20 21:39:20,334 - INFO - Connecting to Snowflake...
+2026-03-20 21:39:23,705 - INFO - Reading SQL file: snowflake/setup/datawarehouse.sql
+2026-03-20 21:39:31,161 - INFO - SQL execution completed successfully.
+2026-03-20 21:39:31,301 - INFO - Snowflake connection closed.
+2026-03-20 21:39:31,302 - INFO - Connecting to Snowflake...
+2026-03-20 21:39:33,881 - INFO - Reading SQL file: snowflake/setup/datamasking_rbac.sql
+2026-03-20 21:39:34,157 - INFO - Snowflake connection closed.
