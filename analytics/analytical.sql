@@ -2,8 +2,6 @@ USE WAREHOUSE LOAN_WH;
 
 USE DATABASE LOAN_DB;
 
-CREATE OR REPLACE SCHEMA ANALYTICS;
-
 USE SCHEMA ANALYTICS;
 
 -- ==========================================================

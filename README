@@ -1,25 +1,175 @@
-# Loan Data Engineering Pipeline
+Enhancing Loan Management Efficiency for the International Bank for Reconstruction and Development (IBRD)
 
-This project implements a complete Data Engineering pipeline using PySpark and Azure Data Lake.
+Overview:
+This project aims to enhance loan management efficiency for the International Bank for Reconstruction and Development (IBRD) by analyzing historical loan data and identifying patterns behind loan cancellations. A scalable data pipeline is built using PySpark, Snowflake, and Azure Data Lake Storage to handle data ingestion, transformation, and storage. Through analytical queries and dashboards, the project provides insights into loan trends, and key borrowers, helping reduce cancellations and improve overall loan performance.
 
-Architecture:
-Bronze → Silver → Gold
+It implements an end-to-end data engineering pipeline using PySpark, Snowflake, and Power BI, following a Medallion Architecture (Bronze → Silver → Gold).
 
-Technologies:
-- PySpark
-- Azure Data Lake Storage
-- Parquet
-- Python
-- Spark SQL
+Architecture
+The project follows a layered data architecture:
 
-Pipeline Steps:
-1. Raw data ingestion (Bronze)
-2. Data cleaning and transformation (Silver)
-3. Star schema modeling (Gold)
+Bronze Layer Raw ingested data from World Bank Group (CSV files)
 
-Tables:
+Silver Layer Cleaned and transformed data using PySpark:
+
+Standardize column names
+Cast numeric columns
+Convert date columns
+Handle missing values
+Handle negative values
+Handle duplicate records
+Handle Text columns
+
+Gold Layer Business-level aggregations:
+
+Fact and dimension tables
+KPI-ready datasets
+Serving Layer Data is loaded into Snowflake and visualized using Power BI
+
+Tech Stack
+Azure - Cloud Platform
+PySpark – Distributed data processing
+Snowflake – Cloud data warehouse
+Power BI – Data visualization
+Python – Pipeline development
+
+Data Pipeline
+
+1. Data Ingestion Load raw CSV files into the Bronze layer
+
+2. Data Cleaning (Silver Layer)
+
+Remove null values
+Standardize schema
+Filter invalid records
+
+3. Gold Layer Transformation
+
+Create fact and dimension tables
+
 - dim_customer
 - dim_region
 - dim_loan_type
 - dim_date
 - fact_loans
+
+4. Data Warehousing
+
+Load processed data into Snowflake Using Snowpipe
+Create analytical views/Dynamic Tables
+
+5. Visualization Build interactive dashboards in Power BI
+
+Dashboard Insights
+The dashboard provides:
+
+Total Loans Analyzed, Total Loan Value, Loans Cancelled Amount, and Average Interest Rate
+Loan Cancellation Trends
+Top Loan Countries
+Loans By Region
+Top Projects
+Loan Utilization
+
+Project Structure
+IBRD/
+
+│── data/
+│ └── ibrd_data.csv
+
+│── spark_jars/
+│ ├── azure-storage-8.6.6.jar
+│ ├── hadoop-azure-3.3.4.jar
+│ ├── jackson-core-asl-1.9.13.jar
+│ └── jackson-mapper-asl-1.9.13.jar
+
+│── utils/
+│ └── logging.py
+
+│── logs/
+│ ├── Bronze.log
+│ ├── Silver.log
+│ ├── Gold.log
+│ ├── Snowflake.log
+│ └── Analytics.log
+
+│── etl/
+│ ├── data_ingestion/
+│ │ ├── ingest_data_to_bronze.py
+│ ├── bronze_to_silver/
+│ │ ├── clean_loan_data.py
+│ └── silver_to_gold/
+│ └── transform_loan.py
+
+│── snowflake/
+│ ├── run/
+│ │ ├── snowflake_pipeline.py
+│ └── setup/
+│ ├── datawarehouse.sql
+│ └──datamasking_rbac.sql
+
+│── analytics/
+│ ├── analytical.sql
+│ └── snowflake_pipeline.py
+
+│── dashboard/
+│ └── IBRD_POWER_BI.pbix
+
+│── .env
+│── .gitignore
+│── requirements.txt
+│── README.md
+
+Dataset
+Source: WORLD BANK GROUP – IBRD Statement Of Loans and Guarantees - Historical Data : Approximately 1.5 million
+
+Key columns include:
+
+LOAN NUMBER
+REGION
+COUNTRY
+BORROWER
+LOAN STATUS
+INTREST RATE
+PROJECT NAME
+PRINCIPAL AMOUNT
+DISBURSED AMOUNT
+BOARD APPROVAL DATE
+END OF PERIOD DATE
+
+Key Metrics:
+
+Total Loans Analyzed, Total Loan Value, Loans Cancelled Amount, and Average Interest Rate(%)
+Loan Cancellation Trends
+Top Loan Countries
+Loans By Region
+Top Projects
+Loan Utilization
+
+Key Features:
+
+End-to-end ETL pipeline using PySpark
+Medallion architecture implementation
+Snowflake-based data warehousing
+Interactive Power BI dashboard
+
+How to Run
+Install dependencies:
+pip install -r requirements.txt
+
+Run ingestion:
+python etl/data_ingestion/ingest_data_to_bronze.py
+
+Run transformation:
+python etl/bronze_to_silver/clean_loan_data.py
+
+Run Star Schema Modeling:
+python etl/silver_to_gold/transform_loans.py
+
+Load data into Snowflake (Using Snowpipe) and execute SQL scripts.
+python snowflake/run/snowflake_pipeline.py
+python analytics/snowflake_pipeline.py
+
+Open dashboard:
+dashboard/IBRD_POWER_BI.pbix
+
+Output:

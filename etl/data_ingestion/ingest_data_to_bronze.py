@@ -28,7 +28,7 @@ except Exception as e:
 # 4. Files to Upload
 # ==========================================================
 files_to_upload = [
-    "data/batch_data/ibrd_batchdata.csv"
+    "data/ibrd_data.csv"
 ]
 
 # ==========================================================

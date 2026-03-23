@@ -162,9 +162,6 @@ def clean_string_columns(df: DataFrame) -> DataFrame:
     
     return df
 
-from pyspark.sql import DataFrame
-from pyspark.sql import functions as F
-
 def clean_text_columns(df: DataFrame) -> DataFrame:
     """
     Cleans specific text columns:
